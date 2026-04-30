@@ -129,3 +129,62 @@ describe('TicketService.purchaseTickets - accountId validation', () => {
       .toThrow('accountId must be a positive integer');
   });
 });
+
+describe('TicketService.purchaseTickets - request shape validation', () => {
+  it('throws InvalidPurchaseException when no ticket requests are provided', () => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(1))
+      .toThrow(InvalidPurchaseException);
+    expect(() => service.purchaseTickets(1))
+      .toThrow('At least one ticket type request must be provided');
+  });
+
+  it('throws when a request is not a TicketTypeRequest instance', () => {
+    const { service } = createService();
+    const fakeRequest = { getTicketType: () => 'ADULT', getNoOfTickets: () => 1 };
+
+    expect(() => service.purchaseTickets(1, fakeRequest))
+      .toThrow(InvalidPurchaseException);
+    expect(() => service.purchaseTickets(1, fakeRequest))
+      .toThrow('Each ticket request must be a TicketTypeRequest');
+  });
+
+  it('rejects the whole basket if any request is not a TicketTypeRequest', () => {
+    const { service, paymentService, seatService } = createService();
+
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('ADULT', 1),
+      { getTicketType: () => 'CHILD', getNoOfTickets: () => 1 },
+    )).toThrow(InvalidPurchaseException);
+
+    expect(paymentService.makePayment).not.toHaveBeenCalled();
+    expect(seatService.reserveSeat).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['zero tickets', 0],
+    ['a negative count', -3],
+  ])('throws when a request asks for %s', (_label, count) => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('ADULT', count)))
+      .toThrow(InvalidPurchaseException);
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('ADULT', count)))
+      .toThrow('Number of tickets must be a positive integer');
+  });
+
+  it('rejects the whole basket if a single request has zero tickets', () => {
+    const { service, paymentService, seatService } = createService();
+
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('ADULT', 2),
+      new TicketTypeRequest('CHILD', 0),
+    )).toThrow(InvalidPurchaseException);
+
+    expect(paymentService.makePayment).not.toHaveBeenCalled();
+    expect(seatService.reserveSeat).not.toHaveBeenCalled();
+  });
+});

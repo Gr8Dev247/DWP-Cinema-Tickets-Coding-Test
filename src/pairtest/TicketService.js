@@ -1,6 +1,7 @@
 import TicketPaymentService from '../thirdparty/paymentgateway/TicketPaymentService.js';
 import SeatReservationService from '../thirdparty/seatbooking/SeatReservationService.js';
 import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
+import TicketTypeRequest from './lib/TicketTypeRequest.js';
 import {
   calculateAmount,
   calculateSeats,
@@ -32,6 +33,7 @@ export default class TicketService {
   purchaseTickets(accountId, ...ticketTypeRequests) {
     // throws InvalidPurchaseException
     this.#validateAccountId(accountId);
+    this.#validateTicketRequests(ticketTypeRequests);
 
     const counts = summariseRequests(ticketTypeRequests);
 
@@ -43,6 +45,31 @@ export default class TicketService {
   #validateAccountId(accountId) {
     if (!Number.isInteger(accountId) || accountId <= 0) {
       throw new InvalidPurchaseException('accountId must be a positive integer');
+    }
+  }
+
+  #validateTicketRequests(ticketTypeRequests) {
+    if (ticketTypeRequests.length === 0) {
+      throw new InvalidPurchaseException(
+        'At least one ticket type request must be provided',
+      );
+    }
+
+    for (const request of ticketTypeRequests) {
+      if (!(request instanceof TicketTypeRequest)) {
+        throw new InvalidPurchaseException(
+          'Each ticket request must be a TicketTypeRequest',
+        );
+      }
+
+      // TicketTypeRequest's own constructor guarantees noOfTickets is an
+      // integer, but does not stop zero or negative values - we reject those
+      // here so callers cannot smuggle in nonsense baskets.
+      if (request.getNoOfTickets() <= 0) {
+        throw new InvalidPurchaseException(
+          'Number of tickets must be a positive integer',
+        );
+      }
     }
   }
 }
