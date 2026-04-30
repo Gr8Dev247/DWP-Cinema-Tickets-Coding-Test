@@ -230,3 +230,52 @@ describe('TicketService.purchaseTickets - max 25 tickets', () => {
     expect(seatService.reserveSeat).not.toHaveBeenCalled();
   });
 });
+
+describe('TicketService.purchaseTickets - adult required for child/infant', () => {
+  it('throws when only a child ticket is requested', () => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('CHILD', 1)))
+      .toThrow(InvalidPurchaseException);
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('CHILD', 1)))
+      .toThrow('Child and Infant tickets cannot be purchased without an Adult ticket');
+  });
+
+  it('throws when only an infant ticket is requested', () => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('INFANT', 1)))
+      .toThrow(InvalidPurchaseException);
+  });
+
+  it('throws when children and infants are requested without an adult', () => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('CHILD', 2),
+      new TicketTypeRequest('INFANT', 1),
+    )).toThrow(InvalidPurchaseException);
+  });
+
+  it('throws when several child requests are made without an adult', () => {
+    // Multiple same-type requests still aggregate to "no adults".
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('CHILD', 1),
+      new TicketTypeRequest('CHILD', 2),
+    )).toThrow(InvalidPurchaseException);
+  });
+
+  it('does not call payment or seat services when no adult is present', () => {
+    const { service, paymentService, seatService } = createService();
+
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('CHILD', 1)))
+      .toThrow(InvalidPurchaseException);
+
+    expect(paymentService.makePayment).not.toHaveBeenCalled();
+    expect(seatService.reserveSeat).not.toHaveBeenCalled();
+  });
+});

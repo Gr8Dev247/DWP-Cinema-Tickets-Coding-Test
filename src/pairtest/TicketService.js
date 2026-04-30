@@ -81,5 +81,11 @@ export default class TicketService {
         `Cannot purchase more than ${MAX_TICKETS_PER_PURCHASE} tickets at a time`,
       );
     }
+
+    if (counts.adult === 0 && (counts.child > 0 || counts.infant > 0)) {
+      throw new InvalidPurchaseException(
+        'Child and Infant tickets cannot be purchased without an Adult ticket',
+      );
+    }
   }
 }
