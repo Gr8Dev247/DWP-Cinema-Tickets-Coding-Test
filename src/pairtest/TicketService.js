@@ -1,5 +1,6 @@
 import TicketPaymentService from '../thirdparty/paymentgateway/TicketPaymentService.js';
 import SeatReservationService from '../thirdparty/seatbooking/SeatReservationService.js';
+import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
 import {
   calculateAmount,
   calculateSeats,
@@ -30,10 +31,18 @@ export default class TicketService {
 
   purchaseTickets(accountId, ...ticketTypeRequests) {
     // throws InvalidPurchaseException
+    this.#validateAccountId(accountId);
+
     const counts = summariseRequests(ticketTypeRequests);
 
     // Pay first, reserve second: never reserve a seat for an unpaid order.
     this.#paymentService.makePayment(accountId, calculateAmount(counts));
     this.#seatService.reserveSeat(accountId, calculateSeats(counts));
+  }
+
+  #validateAccountId(accountId) {
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      throw new InvalidPurchaseException('accountId must be a positive integer');
+    }
   }
 }

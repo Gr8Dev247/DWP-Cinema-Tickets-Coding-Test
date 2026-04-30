@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import TicketService from '../src/pairtest/TicketService.js';
+import InvalidPurchaseException from '../src/pairtest/lib/InvalidPurchaseException.js';
 import TicketTypeRequest from '../src/pairtest/lib/TicketTypeRequest.js';
 
 function createService() {
@@ -85,5 +86,46 @@ describe('TicketService.purchaseTickets - happy path', () => {
     service.purchaseTickets(1, new TicketTypeRequest('ADULT', 1));
 
     expect(callOrder).toEqual(['pay', 'reserve']);
+  });
+});
+
+describe('TicketService.purchaseTickets - accountId validation', () => {
+  // Anything other than a positive integer is invalid per the brief
+  // ("All accounts with an id greater than zero are valid").
+  const invalidAccountIds = [
+    ['zero', 0],
+    ['a negative integer', -1],
+    ['a non-integer number', 1.5],
+    ['NaN', NaN],
+    ['Infinity', Infinity],
+    ['a numeric string', '1'],
+    ['null', null],
+    ['undefined', undefined],
+    ['a boolean', true],
+    ['an object', {}],
+  ];
+
+  it.each(invalidAccountIds)('throws InvalidPurchaseException for %s', (_label, accountId) => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(accountId, new TicketTypeRequest('ADULT', 1)))
+      .toThrow(InvalidPurchaseException);
+  });
+
+  it('does not call payment or seat services when accountId is invalid', () => {
+    const { service, paymentService, seatService } = createService();
+
+    expect(() => service.purchaseTickets(0, new TicketTypeRequest('ADULT', 1)))
+      .toThrow(InvalidPurchaseException);
+
+    expect(paymentService.makePayment).not.toHaveBeenCalled();
+    expect(seatService.reserveSeat).not.toHaveBeenCalled();
+  });
+
+  it('uses a descriptive exception message', () => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(0, new TicketTypeRequest('ADULT', 1)))
+      .toThrow('accountId must be a positive integer');
   });
 });
