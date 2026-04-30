@@ -279,3 +279,48 @@ describe('TicketService.purchaseTickets - adult required for child/infant', () =
     expect(seatService.reserveSeat).not.toHaveBeenCalled();
   });
 });
+
+describe('TicketService.purchaseTickets - infants per adult lap', () => {
+  it('allows infants equal to adults (boundary)', () => {
+    const { service, paymentService, seatService } = createService();
+
+    service.purchaseTickets(
+      1,
+      new TicketTypeRequest('ADULT', 2),
+      new TicketTypeRequest('INFANT', 2),
+    );
+
+    expect(paymentService.makePayment).toHaveBeenCalledWith(1, 50);
+    expect(seatService.reserveSeat).toHaveBeenCalledWith(1, 2);
+  });
+
+  it('throws when there are more infants than adults', () => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('ADULT', 1),
+      new TicketTypeRequest('INFANT', 2),
+    )).toThrow(InvalidPurchaseException);
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('ADULT', 1),
+      new TicketTypeRequest('INFANT', 2),
+    )).toThrow(
+      "Each Infant must sit on an Adult's lap — there cannot be more Infants than Adults",
+    );
+  });
+
+  it('does not call payment or seat services when infant count exceeds adults', () => {
+    const { service, paymentService, seatService } = createService();
+
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('ADULT', 2),
+      new TicketTypeRequest('INFANT', 3),
+    )).toThrow(InvalidPurchaseException);
+
+    expect(paymentService.makePayment).not.toHaveBeenCalled();
+    expect(seatService.reserveSeat).not.toHaveBeenCalled();
+  });
+});

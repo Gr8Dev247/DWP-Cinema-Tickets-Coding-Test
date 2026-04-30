@@ -87,5 +87,12 @@ export default class TicketService {
         'Child and Infant tickets cannot be purchased without an Adult ticket',
       );
     }
+
+    // Infants sit on an adult's lap — one lap per adult.
+    if (counts.infant > counts.adult) {
+      throw new InvalidPurchaseException(
+        'Each Infant must sit on an Adult\'s lap — there cannot be more Infants than Adults',
+      );
+    }
   }
 }
