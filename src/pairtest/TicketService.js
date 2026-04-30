@@ -1,5 +1,6 @@
 import TicketPaymentService from '../thirdparty/paymentgateway/TicketPaymentService.js';
 import SeatReservationService from '../thirdparty/seatbooking/SeatReservationService.js';
+import { MAX_TICKETS_PER_PURCHASE } from './lib/constants.js';
 import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
 import TicketTypeRequest from './lib/TicketTypeRequest.js';
 import {
@@ -36,6 +37,7 @@ export default class TicketService {
     this.#validateTicketRequests(ticketTypeRequests);
 
     const counts = summariseRequests(ticketTypeRequests);
+    this.#validateBasketTotals(counts);
 
     // Pay first, reserve second: never reserve a seat for an unpaid order.
     this.#paymentService.makePayment(accountId, calculateAmount(counts));
@@ -70,6 +72,14 @@ export default class TicketService {
           'Number of tickets must be a positive integer',
         );
       }
+    }
+  }
+
+  #validateBasketTotals(counts) {
+    if (counts.total > MAX_TICKETS_PER_PURCHASE) {
+      throw new InvalidPurchaseException(
+        `Cannot purchase more than ${MAX_TICKETS_PER_PURCHASE} tickets at a time`,
+      );
     }
   }
 }

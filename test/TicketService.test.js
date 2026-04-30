@@ -188,3 +188,45 @@ describe('TicketService.purchaseTickets - request shape validation', () => {
     expect(seatService.reserveSeat).not.toHaveBeenCalled();
   });
 });
+
+describe('TicketService.purchaseTickets - max 25 tickets', () => {
+  it('allows exactly 25 tickets (boundary)', () => {
+    const { service, paymentService, seatService } = createService();
+
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('ADULT', 25)))
+      .not.toThrow();
+    expect(paymentService.makePayment).toHaveBeenCalledWith(1, 625);
+    expect(seatService.reserveSeat).toHaveBeenCalledWith(1, 25);
+  });
+
+  it('throws when a single request asks for 26 tickets', () => {
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('ADULT', 26)))
+      .toThrow(InvalidPurchaseException);
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('ADULT', 26)))
+      .toThrow('Cannot purchase more than 25 tickets at a time');
+  });
+
+  it('throws when totals across requests exceed 25', () => {
+    // 20 adults + 5 children + 1 infant = 26 in total.
+    const { service } = createService();
+
+    expect(() => service.purchaseTickets(
+      1,
+      new TicketTypeRequest('ADULT', 20),
+      new TicketTypeRequest('CHILD', 5),
+      new TicketTypeRequest('INFANT', 1),
+    )).toThrow(InvalidPurchaseException);
+  });
+
+  it('does not call payment or seat services when over the limit', () => {
+    const { service, paymentService, seatService } = createService();
+
+    expect(() => service.purchaseTickets(1, new TicketTypeRequest('ADULT', 100)))
+      .toThrow(InvalidPurchaseException);
+
+    expect(paymentService.makePayment).not.toHaveBeenCalled();
+    expect(seatService.reserveSeat).not.toHaveBeenCalled();
+  });
+});
